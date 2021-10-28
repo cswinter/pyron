@@ -10,6 +10,6 @@ name = "pyron"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-ron = { git = "https://github.com/cswinter/ron.git", rev = "91fdaf1", features = ["indexmap"] }
+ron = { git = "https://github.com/cswinter/ron.git", rev = "b85bf64", features = ["indexmap"] }
 
 pyo3 = { version = "0.14.5", features = ["extension-module"] }
