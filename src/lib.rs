@@ -9,9 +9,17 @@ pub fn to_string(py: Python, value: &PyAny) -> PyResult<String> {
         .map_err(|e| exceptions::PyValueError::new_err(format!("{}", e)))
 }
 
+#[pyfunction()]
+pub fn load(py: Python, s: &str) -> PyResult<PyObject> {
+    let value: ron::Value =
+        ron::de::from_str(s).map_err(|e| exceptions::PyValueError::new_err(format!("{}", e)))?;
+    try_val_to_py(&value, py)
+}
+
 #[pymodule]
 fn pyron(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(to_string, m)?).unwrap();
+    m.add_function(wrap_pyfunction!(load, m)?).unwrap();
     Ok(())
 }
 
@@ -116,4 +124,38 @@ fn extract_dataclass(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
         s.insert(field, value);
     }
     Ok(ron::Value::Struct(s))
+}
+
+fn try_val_to_py(value: &ron::Value, py: Python) -> PyResult<PyObject> {
+    let p = match value {
+        ron::Value::String(s) => s.into_py(py),
+        ron::Value::Number(ron::Number::Float(f)) => f.get().into_py(py),
+        ron::Value::Number(ron::Number::Integer(i)) => i.into_py(py),
+        ron::Value::Bool(b) => b.into_py(py),
+        ron::Value::Struct(s) => {
+            let dict = PyDict::new(py);
+            for (key, value) in s.iter() {
+                dict.set_item(key, try_val_to_py(value, py)?)?;
+            }
+            dict.into()
+        }
+        ron::Value::Seq(s) => {
+            let mut list = vec![];
+            for value in s {
+                list.push(try_val_to_py(value, py)?);
+            }
+            PyList::new(py, list).into()
+        }
+        ron::Value::Map(m) => {
+            let dict = PyDict::new(py);
+            for (key, value) in m.iter() {
+                dict.set_item(try_val_to_py(key, py)?, try_val_to_py(value, py)?)?;
+            }
+            dict.into()
+        }
+        ron::Value::Char(c) => c.into_py(py),
+        ron::Value::Option(Some(value)) => try_val_to_py(value.as_ref(), py)?,
+        ron::Value::Option(None) | ron::Value::Unit => None::<()>.into_py(py),
+    };
+    Ok(p)
 }
