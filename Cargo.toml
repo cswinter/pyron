@@ -1,0 +1,15 @@
+[package]
+name = "pyron"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "pyron"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ron = { git = "https://github.com/cswinter/ron.git", rev = "91fdaf1", features = ["indexmap"] }
+
+pyo3 = { version = "0.14.5", features = ["extension-module"] }
