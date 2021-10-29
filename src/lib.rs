@@ -139,6 +139,14 @@ fn try_val_to_py(value: &ron::Value, py: Python) -> PyResult<PyObject> {
             }
             dict.into()
         }
+        ron::Value::Tuple(t) => {
+            let mut elements = vec![];
+            for value in t.iter() {
+                elements.push(try_val_to_py(value, py)?);
+            }
+
+            PyTuple::new(py, elements).into()
+        }
         ron::Value::Seq(s) => {
             let mut list = vec![];
             for value in s {
