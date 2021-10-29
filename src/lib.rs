@@ -42,7 +42,7 @@ fn extract(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
             for value in tuple.iter() {
                 seq.push(extract(py, value)?);
             }
-            Ok(ron::Value::Seq(seq))
+            Ok(ron::Value::Tuple(seq))
         }
     } else if let Ok(list) = value.cast_as::<PyList>() {
         let mut seq = vec![];
