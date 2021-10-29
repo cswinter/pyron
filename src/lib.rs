@@ -24,7 +24,6 @@ fn pyron(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 fn extract(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
-    println!("{:?}", value);
     if let Ok(dict) = value.cast_as::<PyDict>() {
         let mut map = ron::Map::new();
         for (key, value) in dict {
