@@ -24,6 +24,7 @@ fn pyron(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 fn extract(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
+    println!("{:?}", value);
     if let Ok(dict) = value.cast_as::<PyDict>() {
         let mut map = ron::Map::new();
         for (key, value) in dict {
@@ -48,12 +49,12 @@ fn extract(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
         Ok(ron::Value::Seq(seq))
     } else if let Ok(str) = value.extract::<String>() {
         Ok(ron::Value::String(str))
+    } else if let Ok(bool) = value.extract::<bool>() {
+        Ok(ron::Value::Bool(bool))
     } else if let Ok(int) = value.extract::<i64>() {
         Ok(ron::Value::Number(ron::Number::Integer(int)))
     } else if let Ok(float) = value.extract::<f64>() {
         Ok(ron::Value::Number(ron::Number::from(float)))
-    } else if let Ok(bool) = value.extract::<bool>() {
-        Ok(ron::Value::Bool(bool))
     } else if PyModule::import(py, "dataclasses")?
         .call_method1("is_dataclass", (value,))?
         .extract::<bool>()?
