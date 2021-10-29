@@ -5,7 +5,11 @@ use pyo3::{exceptions, prelude::*, wrap_pyfunction};
 pub fn to_string(py: Python, value: &PyAny) -> PyResult<String> {
     let value = extract(py, value)?;
     value
-        .to_string_pretty(ron::ser::PrettyConfig::default().struct_names(true))
+        .to_string_pretty(
+            ron::ser::PrettyConfig::default()
+                .struct_names(true)
+                .decimal_floats(true),
+        )
         .map_err(|e| exceptions::PyValueError::new_err(format!("{}", e)))
 }
 
