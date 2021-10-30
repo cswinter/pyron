@@ -58,6 +58,8 @@ fn extract(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
         Ok(ron::Value::Number(ron::Number::Integer(int)))
     } else if let Ok(float) = value.extract::<f64>() {
         Ok(ron::Value::Number(ron::Number::from(float)))
+    } else if let Ok(None) = value.extract::<Option<PyObject>>() {
+        Ok(ron::Value::Option(None))
     } else if PyModule::import(py, "dataclasses")?
         .call_method1("is_dataclass", (value,))?
         .extract::<bool>()?
