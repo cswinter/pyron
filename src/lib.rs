@@ -13,11 +13,11 @@ pub fn to_string(py: Python, value: &PyAny) -> PyResult<String> {
         .map_err(|e| exceptions::PyValueError::new_err(format!("{}", e)))
 }
 
-#[pyfunction()]
-pub fn load(py: Python, s: &str) -> PyResult<PyObject> {
+#[pyfunction(preserve_structs = "false")]
+pub fn load(py: Python, s: &str, preserve_structs: bool) -> PyResult<PyObject> {
     let value: ron::Value =
         ron::de::from_str(s).map_err(|e| exceptions::PyValueError::new_err(format!("{}", e)))?;
-    try_val_to_py(&value, py)
+    try_val_to_py(py, &value, preserve_structs)
 }
 
 #[pymodule]
@@ -130,7 +130,7 @@ fn extract_dataclass(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
     Ok(ron::Value::Struct(s))
 }
 
-fn try_val_to_py(value: &ron::Value, py: Python) -> PyResult<PyObject> {
+fn try_val_to_py(py: Python, value: &ron::Value, preserve_structs: bool) -> PyResult<PyObject> {
     let p = match value {
         ron::Value::String(s) => s.into_py(py),
         ron::Value::Number(ron::Number::Float(f)) => f.get().into_py(py),
@@ -139,14 +139,22 @@ fn try_val_to_py(value: &ron::Value, py: Python) -> PyResult<PyObject> {
         ron::Value::Struct(s) => {
             let dict = PyDict::new(py);
             for (key, value) in s.iter() {
-                dict.set_item(key, try_val_to_py(value, py)?)?;
+                dict.set_item(key, try_val_to_py(py, value, preserve_structs)?)?;
             }
-            dict.into()
+            if s.name.is_some() && preserve_structs {
+                let namedtuple = PyModule::import(py, "collections")?.call_method1(
+                    "namedtuple",
+                    (s.name.as_ref().unwrap().to_string(), dict.keys()),
+                )?;
+                namedtuple.call((), Some(dict))?.into()
+            } else {
+                dict.into()
+            }
         }
         ron::Value::Tuple(t) => {
             let mut elements = vec![];
             for value in t.iter() {
-                elements.push(try_val_to_py(value, py)?);
+                elements.push(try_val_to_py(py, value, preserve_structs)?);
             }
 
             PyTuple::new(py, elements).into()
@@ -154,20 +162,24 @@ fn try_val_to_py(value: &ron::Value, py: Python) -> PyResult<PyObject> {
         ron::Value::Seq(s) => {
             let mut list = vec![];
             for value in s {
-                list.push(try_val_to_py(value, py)?);
+                list.push(try_val_to_py(py, value, preserve_structs)?);
             }
             PyList::new(py, list).into()
         }
         ron::Value::Map(m) => {
             let dict = PyDict::new(py);
             for (key, value) in m.iter() {
-                dict.set_item(try_val_to_py(key, py)?, try_val_to_py(value, py)?)?;
+                dict.set_item(
+                    try_val_to_py(py, key, preserve_structs)?,
+                    try_val_to_py(py, value, preserve_structs)?,
+                )?;
             }
             dict.into()
         }
         ron::Value::Char(c) => c.into_py(py),
-        ron::Value::Option(Some(value)) => try_val_to_py(value.as_ref(), py)?,
-        ron::Value::Option(None) | ron::Value::Unit => None::<()>.into_py(py),
+        ron::Value::Option(Some(value)) => try_val_to_py(py, value.as_ref(), preserve_structs)?,
+        ron::Value::Option(None) => None::<()>.into_py(py),
+        ron::Value::Unit => ().into_py(py),
     };
     Ok(p)
 }

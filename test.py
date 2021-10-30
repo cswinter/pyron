@@ -69,3 +69,5 @@ assert pyron.load(string) == {
     "users": [{"name": "John", "age": 30}, {"name": "Jane", "age": 25}],
     "count": 2,
 }
+
+print(pyron.load('Schedule(key: "state.step/config.steps", schedule: [(0, 0.0005), "lin", (1, 0)])', preserve_structs=True))
