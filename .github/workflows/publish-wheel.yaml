@@ -1,9 +1,31 @@
-- uses: actions-rs/toolchain@v1
-  with:
-    profile: minimal
-    toolchain: stable
-    override: true
-- uses: messense/maturin-action@v1
-  with:
-    maturin-version: latest
-    command: publish
+name: Publish
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  publish:
+    name: Publish for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: repl
+            asset_name: locustdb-linux-amd64
+          - os: macos-latest
+            artifact_name: repl
+            asset_name: locustdb-macos-amd64
+
+    steps:
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: messense/maturin-action@v1
+        with:
+          maturin-version: latest
+          command: publish
