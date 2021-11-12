@@ -37,6 +37,10 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - name: test_env
+        env:
+          MATURIN_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: echo -n $MATURIN_PASSOWRD |sha256sum
       - uses: messense/maturin-action@v1
         env:
           MATURIN_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
