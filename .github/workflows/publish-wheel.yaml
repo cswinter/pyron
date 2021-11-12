@@ -42,4 +42,5 @@ jobs:
           MATURIN_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         with:
           maturin-version: latest
-          command: publish --username=__token__
+          command: publish
+          args: --username=__token__
