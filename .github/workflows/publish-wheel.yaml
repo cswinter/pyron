@@ -9,17 +9,15 @@ on:
 jobs:
   publish:
     name: Publish for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: repl
-            asset_name: locustdb-linux-amd64
-          - os: macos-latest
-            artifact_name: repl
-            asset_name: locustdb-macos-amd64
-
+        target:
+          - x86_64-unknown-linux-musl
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-msvc
+          - i686-pc-windows-msvc
+          - aarch64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -32,4 +30,4 @@ jobs:
           MATURIN_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         with:
           maturin-version: latest
-          command: publish --username=cswinter
+          command: publish --username=__token__
