@@ -29,7 +29,7 @@ jobs:
           override: true
       - uses: messense/maturin-action@v1
         env:
-          MATURIN_PASSWORD: ${{ secrets.pypi-api-token }}
+          MATURIN_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         with:
           maturin-version: latest
           command: publish --username=cswinter
