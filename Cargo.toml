@@ -11,5 +11,6 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 ron = { git = "https://github.com/cswinter/ron.git", rev = "2599f54", features = ["indexmap"] }
+ron-parser = { git = "https://github.com/cswinter/ron-parser", rev = "636564e" }
 
 pyo3 = { version = "0.14.5", features = ["extension-module"] }

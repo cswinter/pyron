@@ -13,10 +13,45 @@ pub fn to_string(py: Python, value: &PyAny) -> PyResult<String> {
         .map_err(|e| exceptions::PyValueError::new_err(format!("{}", e)))
 }
 
-#[pyfunction(preserve_structs = "false")]
-pub fn load(py: Python, s: &str, preserve_structs: bool) -> PyResult<PyObject> {
-    let value: ron::Value =
-        ron::de::from_str(s).map_err(|e| exceptions::PyValueError::new_err(format!("{}", e)))?;
+#[pyfunction(preserve_structs = "false", print_errors = "true")]
+pub fn load(
+    py: Python,
+    path: &str,
+    preserve_structs: bool,
+    print_errors: bool,
+) -> PyResult<PyObject> {
+    let parse = ron_parser::load(path)?;
+    if !parse.errors.is_empty() {
+        if print_errors {
+            parse.emit();
+        }
+        return Err(exceptions::PyValueError::new_err(format!(
+            "Fail to parse: {}",
+            path
+        )));
+    }
+    try_val_to_py(py, &parse.value, preserve_structs)
+}
+
+#[pyfunction(preserve_structs = "false", print_errors = "true")]
+pub fn loads(
+    py: Python,
+    s: &str,
+    preserve_structs: bool,
+    print_errors: bool,
+) -> PyResult<PyObject> {
+    let value = match ron_parser::parse(s, None) {
+        Ok(value) => value,
+        Err(parse) => {
+            if print_errors {
+                parse.emit();
+            }
+            return Err(exceptions::PyValueError::new_err(format!(
+                "Fail to parse: {}",
+                s
+            )));
+        }
+    };
     try_val_to_py(py, &value, preserve_structs)
 }
 
@@ -24,6 +59,7 @@ pub fn load(py: Python, s: &str, preserve_structs: bool) -> PyResult<PyObject> {
 fn pyron(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(to_string, m)?).unwrap();
     m.add_function(wrap_pyfunction!(load, m)?).unwrap();
+    m.add_function(wrap_pyfunction!(loads, m)?).unwrap();
     Ok(())
 }
 
@@ -132,43 +168,66 @@ fn extract_dataclass(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
     Ok(ron::Value::Struct(s))
 }
 
-fn try_val_to_py(py: Python, value: &ron::Value, preserve_structs: bool) -> PyResult<PyObject> {
+fn try_val_to_py(
+    py: Python,
+    value: &ron_parser::Value,
+    preserve_structs: bool,
+) -> PyResult<PyObject> {
+    use ron_parser::Value;
     let p = match value {
-        ron::Value::String(s) => s.into_py(py),
-        ron::Value::Number(ron::Number::Float(f)) => f.get().into_py(py),
-        ron::Value::Number(ron::Number::Integer(i)) => i.into_py(py),
-        ron::Value::Bool(b) => b.into_py(py),
-        ron::Value::Struct(s) => {
+        Value::String(s) => s.into_py(py),
+        Value::Number(ron_parser::Number::Float(f)) => f.get().into_py(py),
+        Value::Number(ron_parser::Number::Integer(i)) => i.into_py(py),
+        Value::Bool(b) => b.into_py(py),
+        Value::Struct(s) => {
             let dict = PyDict::new(py);
             for (key, value) in s.iter() {
                 dict.set_item(key, try_val_to_py(py, value, preserve_structs)?)?;
             }
-            if s.name.is_some() && preserve_structs {
-                let namedtuple = PyModule::import(py, "collections")?.call_method1(
-                    "namedtuple",
-                    (s.name.as_ref().unwrap().to_string(), dict.keys()),
-                )?;
-                namedtuple.call((), Some(dict))?.into()
-            } else {
-                dict.into()
+            match &s.name {
+                Some(name) if preserve_structs => {
+                    let namedtuple = PyModule::import(py, "collections")?
+                        .call_method1("namedtuple", (name.to_string(), dict.keys()))?;
+                    namedtuple.call((), Some(dict))?.into()
+                }
+                _ => dict.into(),
             }
         }
-        ron::Value::Tuple(t) => {
+        Value::Tuple(name, t) => {
             let mut elements = vec![];
             for value in t.iter() {
                 elements.push(try_val_to_py(py, value, preserve_structs)?);
             }
 
-            PyTuple::new(py, elements).into()
+            match name {
+                Some(name) if preserve_structs => {
+                    let namedtuple = PyModule::import(py, "collections")?.call_method1(
+                        "namedtuple",
+                        (
+                            name.to_string(),
+                            (0..t.len()).map(|i| format!("_{}", i)).collect::<Vec<_>>(),
+                        ),
+                    )?;
+                    let dict = PyDict::new(py);
+                    for (i, value) in t.iter().enumerate() {
+                        dict.set_item(
+                            format!("_{}", i),
+                            try_val_to_py(py, value, preserve_structs)?,
+                        )?;
+                    }
+                    namedtuple.call((), Some(dict))?.into()
+                }
+                _ => PyTuple::new(py, elements).into(),
+            }
         }
-        ron::Value::Seq(s) => {
+        Value::Seq(s) => {
             let mut list = vec![];
             for value in s {
                 list.push(try_val_to_py(py, value, preserve_structs)?);
             }
             PyList::new(py, list).into()
         }
-        ron::Value::Map(m) => {
+        Value::Map(m) => {
             let dict = PyDict::new(py);
             for (key, value) in m.iter() {
                 dict.set_item(
@@ -178,10 +237,16 @@ fn try_val_to_py(py: Python, value: &ron::Value, preserve_structs: bool) -> PyRe
             }
             dict.into()
         }
-        ron::Value::Char(c) => c.into_py(py),
-        ron::Value::Option(Some(value)) => try_val_to_py(py, value.as_ref(), preserve_structs)?,
-        ron::Value::Option(None) => None::<()>.into_py(py),
-        ron::Value::Unit => ().into_py(py),
+        Value::Char(c) => c.into_py(py),
+        Value::Option(Some(value)) => try_val_to_py(py, value.as_ref(), preserve_structs)?,
+        Value::Option(None) => None::<()>.into_py(py),
+        Value::Unit => ().into_py(py),
+        Value::Include(path) => {
+            return Err(exceptions::PyValueError::new_err(format!(
+                "Unresolved #include(\"{}\") directive",
+                path
+            )))
+        }
     };
     Ok(p)
 }
