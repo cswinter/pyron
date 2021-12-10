@@ -52,4 +52,4 @@ jobs:
           maturin-version: latest
           command: publish
           target: ${{ matrix.target }}
-          args: --username=__token__
+          args: --username=__token__ --skip-existing
