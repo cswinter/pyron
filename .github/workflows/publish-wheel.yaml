@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish:
-    name: Publish for ${{ matrix.os }} ${{ matrix.target }} Python ${{ matrix.python }}
+    name: Publish for ${{ matrix.os }} ${{ matrix.target }} Python ${{ matrix.python-version }}
     strategy:
       fail-fast: false
       matrix:
@@ -28,8 +28,6 @@ jobs:
             os: windows-latest
           - target: i686-pc-windows-msvc
             os: windows-latest
-          #- target: aarch64-pc-windows-msvc
-          #  os: windows-latest
     runs-on: ${{ matrix.os }}
     environment: PyPI
     steps:
