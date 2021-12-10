@@ -17,7 +17,7 @@ jobs:
           - x86_64-apple-darwin
           - x86_64-pc-windows-msvc
           - i686-pc-windows-msvc
-          - aarch64-pc-windows-msvc
+          #- aarch64-pc-windows-msvc
         python-version: ['3.7', '3.8', '3.9']
         include:
           - target: x86_64-unknown-linux-musl
@@ -28,6 +28,8 @@ jobs:
             os: windows-latest
           - target: i686-pc-windows-msvc
             os: windows-latest
+          #- target: aarch64-pc-windows-msvc
+          #  os: windows-latest
     runs-on: ${{ matrix.os }}
     environment: PyPI
     steps:
