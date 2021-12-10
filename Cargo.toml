@@ -1,6 +1,6 @@
 [package]
 name = "python-ron"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,6 +11,6 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 ron = { git = "https://github.com/cswinter/ron.git", rev = "2599f54", features = ["indexmap"] }
-ron-parser = { git = "https://github.com/cswinter/ron-parser", rev = "636564e" }
+ron-parser = { git = "https://github.com/cswinter/ron-parser", rev = "817f0c9" }
 
 pyo3 = { version = "0.14.5", features = ["extension-module"] }
