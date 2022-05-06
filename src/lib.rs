@@ -13,14 +13,24 @@ pub fn to_string(py: Python, value: &PyAny) -> PyResult<String> {
         .map_err(|e| exceptions::PyValueError::new_err(format!("{}", e)))
 }
 
-#[pyfunction(preserve_structs = "false", print_errors = "true")]
+#[pyfunction(
+    preserve_structs = "false",
+    preserve_class_names = "false",
+    print_errors = "true"
+)]
 pub fn load(
     py: Python,
     path: &str,
     preserve_structs: bool,
+    preserve_class_names: bool,
     print_errors: bool,
 ) -> PyResult<PyObject> {
     let parse = ron_parser::load(path)?;
+    if preserve_structs && preserve_class_names {
+        return Err(exceptions::PyValueError::new_err(
+            "preserve_structs and preserve_class_names cannot be true at the same time",
+        ));
+    }
     if !parse.errors.is_empty() {
         if print_errors {
             parse.emit();
@@ -30,14 +40,19 @@ pub fn load(
             path
         )));
     }
-    try_val_to_py(py, &parse.value, preserve_structs)
+    try_val_to_py(py, &parse.value, preserve_structs, preserve_class_names)
 }
 
-#[pyfunction(preserve_structs = "false", print_errors = "true")]
+#[pyfunction(
+    preserve_structs = "false",
+    preserve_class_names = "false",
+    print_errors = "true"
+)]
 pub fn loads(
     py: Python,
     s: &str,
     preserve_structs: bool,
+    preserve_class_names: bool,
     print_errors: bool,
 ) -> PyResult<PyObject> {
     let value = match ron_parser::parse(s, None) {
@@ -52,7 +67,7 @@ pub fn loads(
             )));
         }
     };
-    try_val_to_py(py, &value, preserve_structs)
+    try_val_to_py(py, &value, preserve_structs, preserve_class_names)
 }
 
 #[pymodule]
@@ -172,6 +187,7 @@ fn try_val_to_py(
     py: Python,
     value: &ron_parser::Value,
     preserve_structs: bool,
+    preserve_class_names: bool,
 ) -> PyResult<PyObject> {
     use ron_parser::Value;
     let p = match value {
@@ -182,7 +198,10 @@ fn try_val_to_py(
         Value::Struct(s) => {
             let dict = PyDict::new(py);
             for (key, value) in s.iter() {
-                dict.set_item(key, try_val_to_py(py, value, preserve_structs)?)?;
+                dict.set_item(
+                    key,
+                    try_val_to_py(py, value, preserve_structs, preserve_class_names)?,
+                )?;
             }
             match &s.name {
                 Some(name) if preserve_structs => {
@@ -190,13 +209,22 @@ fn try_val_to_py(
                         .call_method1("namedtuple", (name.to_string(), dict.keys()))?;
                     namedtuple.call((), Some(dict))?.into()
                 }
+                Some(name) if preserve_class_names => {
+                    dict.set_item("!__name__", name)?;
+                    dict.into()
+                }
                 _ => dict.into(),
             }
         }
         Value::Tuple(name, t) => {
             let mut elements = vec![];
             for value in t.iter() {
-                elements.push(try_val_to_py(py, value, preserve_structs)?);
+                elements.push(try_val_to_py(
+                    py,
+                    value,
+                    preserve_structs,
+                    preserve_class_names,
+                )?);
             }
 
             match name {
@@ -212,7 +240,7 @@ fn try_val_to_py(
                     for (i, value) in t.iter().enumerate() {
                         dict.set_item(
                             format!("_{}", i),
-                            try_val_to_py(py, value, preserve_structs)?,
+                            try_val_to_py(py, value, preserve_structs, preserve_class_names)?,
                         )?;
                     }
                     namedtuple.call((), Some(dict))?.into()
@@ -223,7 +251,12 @@ fn try_val_to_py(
         Value::Seq(s) => {
             let mut list = vec![];
             for value in s {
-                list.push(try_val_to_py(py, value, preserve_structs)?);
+                list.push(try_val_to_py(
+                    py,
+                    value,
+                    preserve_structs,
+                    preserve_class_names,
+                )?);
             }
             PyList::new(py, list).into()
         }
@@ -231,14 +264,16 @@ fn try_val_to_py(
             let dict = PyDict::new(py);
             for (key, value) in m.iter() {
                 dict.set_item(
-                    try_val_to_py(py, key, preserve_structs)?,
-                    try_val_to_py(py, value, preserve_structs)?,
+                    try_val_to_py(py, key, preserve_structs, preserve_class_names)?,
+                    try_val_to_py(py, value, preserve_structs, preserve_class_names)?,
                 )?;
             }
             dict.into()
         }
         Value::Char(c) => c.into_py(py),
-        Value::Option(Some(value)) => try_val_to_py(py, value.as_ref(), preserve_structs)?,
+        Value::Option(Some(value)) => {
+            try_val_to_py(py, value.as_ref(), preserve_structs, preserve_class_names)?
+        }
         Value::Option(None) => None::<()>.into_py(py),
         Value::Unit => ().into_py(py),
         Value::Include(path) => {

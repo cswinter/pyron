@@ -65,9 +65,21 @@ assert (
     count: 2,
 )"""
 )
-assert pyron.load(string) == {
+assert pyron.loads(string) == {
     "users": [{"name": "John", "age": 30}, {"name": "Jane", "age": 25}],
     "count": 2,
 }
 
-print(pyron.load('Schedule(key: "state.step/config.steps", schedule: [(0, 0.0005), "lin", (1, 0)])', preserve_structs=True))
+print(
+    pyron.loads(
+        'Schedule(key: "state.step/config.steps", schedule: [(0, 0.0005), "lin", (1, 0)])',
+        preserve_structs=True,
+    )
+)
+
+result = pyron.loads(string, preserve_class_names=True)
+assert result == {
+    "users": [{"name": "John", "age": 30, "!__name__": "User"}, {"name": "Jane", "age": 25, "!__name__": "User"}],
+    "count": 2,
+    "!__name__": "QueryResult",
+}, result
