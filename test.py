@@ -79,7 +79,14 @@ print(
 
 result = pyron.loads(string, preserve_class_names=True)
 assert result == {
-    "users": [{"name": "John", "age": 30, "!__name__": "User"}, {"name": "Jane", "age": 25, "!__name__": "User"}],
+    "users": [
+        {"name": "John", "age": 30, "!__name__": "User"},
+        {"name": "Jane", "age": 25, "!__name__": "User"},
+    ],
     "count": 2,
     "!__name__": "QueryResult",
 }, result
+
+
+result = pyron.loads("Foo()", preserve_class_names=True)
+assert result == {"!__name__": "Foo"}, result

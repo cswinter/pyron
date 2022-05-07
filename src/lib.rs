@@ -245,6 +245,17 @@ fn try_val_to_py(
                     }
                     namedtuple.call((), Some(dict))?.into()
                 }
+                Some(name) if preserve_class_names => {
+                    let dict = PyDict::new(py);
+                    for (i, value) in t.iter().enumerate() {
+                        dict.set_item(
+                            format!("_{}", i),
+                            try_val_to_py(py, value, preserve_structs, preserve_class_names)?,
+                        )?;
+                    }
+                    dict.set_item("!__name__", name)?;
+                    dict.into()
+                }
                 _ => PyTuple::new(py, elements).into(),
             }
         }
