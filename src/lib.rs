@@ -79,13 +79,13 @@ fn pyron(_py: Python, m: &PyModule) -> PyResult<()> {
 }
 
 fn extract(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
-    if let Ok(dict) = value.cast_as::<PyDict>() {
+    if let Ok(dict) = value.downcast::<PyDict>() {
         let mut map = ron::Map::new();
         for (key, value) in dict {
             map.insert(extract(py, key)?, extract(py, value)?);
         }
         Ok(ron::Value::Map(map))
-    } else if let Ok(tuple) = value.cast_as::<PyTuple>() {
+    } else if let Ok(tuple) = value.downcast::<PyTuple>() {
         if is_namedtuple(tuple) {
             extract_namedtuple(py, tuple)
         } else {
@@ -95,7 +95,7 @@ fn extract(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
             }
             Ok(ron::Value::Tuple(seq))
         }
-    } else if let Ok(list) = value.cast_as::<PyList>() {
+    } else if let Ok(list) = value.downcast::<PyList>() {
         let mut seq = vec![];
         for value in list.iter() {
             seq.push(extract(py, value)?);
@@ -129,7 +129,7 @@ fn is_namedtuple(value: &PyTuple) -> bool {
         Ok(bases) => bases,
         Err(_) => return false,
     };
-    let bases = match bases.cast_as::<PyTuple>() {
+    let bases = match bases.downcast::<PyTuple>() {
         Ok(bases) => bases,
         Err(_) => return false,
     };
@@ -141,7 +141,7 @@ fn is_namedtuple(value: &PyTuple) -> bool {
         Ok(fields) => fields,
         Err(_) => return false,
     };
-    fields.cast_as::<PyTuple>().is_ok()
+    fields.downcast::<PyTuple>().is_ok()
 }
 
 fn extract_namedtuple(py: Python, value: &PyTuple) -> Result<ron::Value, PyErr> {
@@ -152,7 +152,7 @@ fn extract_namedtuple(py: Python, value: &PyTuple) -> Result<ron::Value, PyErr> 
     let mut s = ron::value::Struct::new(Some(name));
     for (name, value) in value
         .call_method("_asdict", (), None)?
-        .cast_as::<PyDict>()?
+        .downcast::<PyDict>()?
     {
         let name = name.extract::<String>()?;
         let value = extract(py, value)?;
@@ -172,11 +172,11 @@ fn extract_dataclass(py: Python, value: &PyAny) -> Result<ron::Value, PyErr> {
     //   ..
     for field in value
         .getattr("__dataclass_fields__")?
-        .cast_as::<PyDict>()?
+        .downcast::<PyDict>()?
         .keys()
     {
         let field = field.extract::<String>()?;
-        let value = value.getattr(&field)?;
+        let value = value.getattr(&*field)?;
         let value = extract(py, value)?;
         s.insert(field, value);
     }
