@@ -12,9 +12,13 @@ readme = "README.md"
 [dependency-groups]
 dev = [
     "maturin[patchelf]>=1.9.4,<2",
+    "pytest>=8",
 ]
 
 [tool.maturin]
 bindings = "pyo3"
 module-name = "pyron"
 include = ["pyron.pyi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
