@@ -21,7 +21,13 @@ pub fn load(
 ) -> PyResult<Py<PyAny>> {
     let source = std::fs::read_to_string(path)
         .map_err(|err| PyValueError::new_err(format!("Failed to read {path}: {err}")))?;
-    loads_impl(py, &source, preserve_structs, preserve_class_names, print_errors)
+    loads_impl(
+        py,
+        &source,
+        preserve_structs,
+        preserve_class_names,
+        print_errors,
+    )
 }
 
 #[pyfunction(signature = (s, preserve_structs = false, preserve_class_names = false, print_errors = true))]
@@ -115,7 +121,9 @@ fn extract(value: &Bound<'_, PyAny>) -> PyResult<Value> {
 
 fn is_dataclass(value: &Bound<'_, PyAny>) -> PyResult<bool> {
     let dataclasses = PyModule::import(value.py(), "dataclasses")?;
-    dataclasses.call_method1("is_dataclass", (value,))?.extract()
+    dataclasses
+        .call_method1("is_dataclass", (value,))?
+        .extract()
 }
 
 fn is_namedtuple(value: &Bound<'_, PyTuple>) -> bool {
@@ -179,20 +187,12 @@ fn value_to_py(
         Value::Seq(values) => sequence_to_py(py, values, preserve_structs, preserve_class_names),
         Value::Tuple(values) => tuple_to_py(py, values, preserve_structs, preserve_class_names),
         Value::Map(map) => map_to_py(py, map, preserve_structs, preserve_class_names),
-        Value::Struct(fields) => struct_to_py(
-            py,
-            None,
-            fields,
-            preserve_structs,
-            preserve_class_names,
-        ),
-        Value::Named { name, content } => named_to_py(
-            py,
-            name,
-            content,
-            preserve_structs,
-            preserve_class_names,
-        ),
+        Value::Struct(fields) => {
+            struct_to_py(py, None, fields, preserve_structs, preserve_class_names)
+        }
+        Value::Named { name, content } => {
+            named_to_py(py, name, content, preserve_structs, preserve_class_names)
+        }
     }
 }
 
@@ -221,7 +221,12 @@ fn sequence_to_py(
 ) -> PyResult<Py<PyAny>> {
     let mut items = Vec::with_capacity(values.len());
     for value in values {
-        items.push(value_to_py(py, value, preserve_structs, preserve_class_names)?);
+        items.push(value_to_py(
+            py,
+            value,
+            preserve_structs,
+            preserve_class_names,
+        )?);
     }
     Ok(PyList::new(py, items)?.into_any().unbind())
 }
@@ -234,7 +239,12 @@ fn tuple_to_py(
 ) -> PyResult<Py<PyAny>> {
     let mut items = Vec::with_capacity(values.len());
     for value in values {
-        items.push(value_to_py(py, value, preserve_structs, preserve_class_names)?);
+        items.push(value_to_py(
+            py,
+            value,
+            preserve_structs,
+            preserve_class_names,
+        )?);
     }
     Ok(PyTuple::new(py, items)?.into_any().unbind())
 }
@@ -302,13 +312,22 @@ fn named_to_py(
                 Ok(PyDict::new(py).into_any().unbind())
             }
         }
-        NamedContent::Struct(fields) => {
-            struct_to_py(py, Some(name), fields, preserve_structs, preserve_class_names)
-        }
+        NamedContent::Struct(fields) => struct_to_py(
+            py,
+            Some(name),
+            fields,
+            preserve_structs,
+            preserve_class_names,
+        ),
         NamedContent::Tuple(values) => {
             let mut items = Vec::with_capacity(values.len());
             for value in values {
-                items.push(value_to_py(py, value, preserve_structs, preserve_class_names)?);
+                items.push(value_to_py(
+                    py,
+                    value,
+                    preserve_structs,
+                    preserve_class_names,
+                )?);
             }
             if preserve_structs {
                 let fields: Vec<String> = (0..values.len()).map(|i| format!("field{i}")).collect();
