@@ -1,0 +1,24 @@
+[build-system]
+requires = ["maturin>=1.9.4,<2"]
+build-backend = "maturin"
+
+[project]
+name = "python-ron"
+dynamic = ["version"]
+requires-python = ">=3.10"
+description = "Python bindings for Rusty Object Notation"
+readme = "README.md"
+
+[dependency-groups]
+dev = [
+    "maturin[patchelf]>=1.9.4,<2",
+    "pytest>=8",
+]
+
+[tool.maturin]
+bindings = "pyo3"
+module-name = "pyron"
+include = ["pyron.pyi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

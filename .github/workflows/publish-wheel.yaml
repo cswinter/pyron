@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish:
-    name: Publish for ${{ matrix.os }}
+    name: Publish for ${{ matrix.os }} / ${{ matrix.target }}
     strategy:
       fail-fast: false
       matrix:
@@ -33,17 +33,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     environment: PyPI
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
       - uses: actions-rs/toolchain@v1
@@ -59,4 +50,5 @@ jobs:
         with:
           maturin-version: latest
           command: publish
-          args: --username=__token__ --skip-existing --find-interpreter
+          target: ${{ matrix.target }}
+          args: --username=__token__ --skip-existing --locked
