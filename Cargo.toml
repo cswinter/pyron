@@ -10,7 +10,6 @@ name = "pyron"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-ron = { git = "https://github.com/cswinter/ron.git", rev = "2599f54", features = ["indexmap"] }
-ron-parser = { git = "https://github.com/cswinter/ron-parser", rev = "817f0c9" }
-
-pyo3 = { version = "0.18", features = ["extension-module"] }
+ron = { version = "0.12.1", features = ["indexmap"] }
+ron2 = { version = "0.3.0", features = ["integer128"] }
+pyo3 = { version = "0.28.3", features = ["abi3-py310", "generate-import-lib"] }
